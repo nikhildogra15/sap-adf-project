@@ -1,0 +1,25 @@
+{
+	"name": "adf-nikhil-batch17",
+	"properties": {
+		"globalParameters": {
+			"ADLSContainer": {
+				"type": "string",
+				"value": "gen2container"
+			},
+			"targetpath": {
+				"type": "string",
+				"value": "target/new_folder"
+			}
+		},
+		"trustModeClaimForMi": {
+			"value": "Disabled",
+			"editable": true
+		}
+	},
+	"location": "eastus",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "f893d4ff-8d87-4537-a8c7-126d6bfc1668",
+		"tenantId": "831e69be-428a-480f-b376-54b7e7b459ca"
+	}
+}

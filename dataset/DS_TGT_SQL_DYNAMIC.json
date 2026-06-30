@@ -1,0 +1,24 @@
+{
+	"name": "DS_TGT_SQL_DYNAMIC",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ls_sql_source_target_gold",
+			"type": "LinkedServiceReference"
+		},
+		"parameters": {
+			"p_table_name": {
+				"type": "string"
+			}
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": [],
+		"typeProperties": {
+			"table": {
+				"value": "@dataset().p_table_name",
+				"type": "Expression"
+			}
+		}
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

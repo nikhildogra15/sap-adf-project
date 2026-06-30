@@ -1,0 +1,203 @@
+{
+	"name": "PL_SQL_12_DAYS_TO_GOLD",
+	"properties": {
+		"activities": [
+			{
+				"name": "ForEach_SQL_Tables",
+				"type": "ForEach",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@pipeline().parameters.p_table",
+						"type": "Expression"
+					},
+					"isSequential": true,
+					"activities": [
+						{
+							"name": "Copy_SourceSQL_To_TargetSQL",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "AzureSqlSource",
+									"sqlReaderQuery": {
+										"value": "@concat(\n'SELECT * FROM [dbo].[',\nitem().source_table,\n'] WHERE [LAST_UPDATED_DATE] >= DATEADD(DAY, -12, CAST(GETDATE() AS date))'\n)",
+										"type": "Expression"
+									},
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"sink": {
+									"type": "AzureSqlSink",
+									"writeBehavior": "insert",
+									"sqlWriterUseTableLock": false
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "DS_SRC_SQL_DYNAMIC",
+									"type": "DatasetReference"
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "DS_TGT_SQL_DYNAMIC",
+									"type": "DatasetReference",
+									"parameters": {
+										"p_table_name": {
+											"value": "@item().target_table",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						}
+					]
+				}
+			},
+			{
+				"name": "Lookup_Latest_Target_Table",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "ForEach_SQL_Tables",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": "SELECT TOP (1)\n    table_name,\n    latest_updated_date\nFROM\n(\n    SELECT\n        'INVOICE_LINE_ITEM_TARGET' AS table_name,\n        MAX(LAST_UPDATED_DATE) AS latest_updated_date,\n        1 AS table_priority\n    FROM dbo.INVOICE_LINE_ITEM_TARGET\n\n    UNION ALL\n\n    SELECT\n        'PRODUCING_STAT_RATIO_DETAIL_TARGET' AS table_name,\n        MAX(LAST_UPDATED_DATE) AS latest_updated_date,\n        2 AS table_priority\n    FROM dbo.PRODUCING_STAT_RATIO_DETAIL_TARGET\n\n    UNION ALL\n\n    SELECT\n        'COSTLIST_TARGET' AS table_name,\n        MAX(LAST_UPDATED_DATE) AS latest_updated_date,\n        3 AS table_priority\n    FROM dbo.COSTLIST_TARGET\n) AS target_tables\nWHERE latest_updated_date IS NOT NULL\nORDER BY\n    latest_updated_date DESC,\n    table_priority ASC;",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "DS_TGT_SQL_DYNAMIC",
+						"type": "DatasetReference",
+						"parameters": {
+							"p_table_name": "INVOICE_LINE_ITEM_TARGET"
+						}
+					}
+				}
+			},
+			{
+				"name": "Copy_Only_Latest_TargetSQL_To_Gold",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "Lookup_Latest_Target_Table",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"sink": {
+						"type": "DelimitedTextSink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings"
+						},
+						"formatSettings": {
+							"type": "DelimitedTextWriteSettings",
+							"quoteAllText": true,
+							"fileExtension": ".txt"
+						}
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "DS_TGT_SQL_DYNAMIC",
+						"type": "DatasetReference",
+						"parameters": {
+							"p_table_name": "@activity('Lookup_Latest_Target_Table').output.firstRow.table_name"
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "DS_GOLD_SQL_CSV",
+						"type": "DatasetReference",
+						"parameters": {
+							"p_file_name": "@concat( replace( activity('Lookup_Latest_Target_Table').output.firstRow.table_name, '_TARGET', '' ), '_LATEST_', formatDateTime(utcNow(),'yyyyMMdd_HHmmss'), '.csv' )"
+						}
+					}
+				]
+			}
+		],
+		"parameters": {
+			"p_table": {
+				"type": "array",
+				"defaultValue": [
+					{
+						"source_table": "INVOICE_LINE_ITEM_SOURCE",
+						"target_table": "INVOICE_LINE_ITEM_TARGET",
+						"gold_prefix": "INVOICE_LINE_ITEM"
+					},
+					{
+						"source_table": "PRODUCING_STAT_RATIO_DETAIL_SOURCE",
+						"target_table": "PRODUCING_STAT_RATIO_DETAIL_TARGET",
+						"gold_prefix": "PRODUCING_STAT_RATIO_DETAIL"
+					},
+					{
+						"source_table": "COSTLIST_SOURCE",
+						"target_table": "COSTLIST_TARGET",
+						"gold_prefix": "COSTLIST"
+					}
+				]
+			}
+		},
+		"annotations": [],
+		"lastPublishTime": "2026-06-30T09:09:55Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

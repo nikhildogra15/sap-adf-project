@@ -1,0 +1,17 @@
+{
+	"name": "ls_sql_database",
+	"type": "Microsoft.DataFactory/factories/linkedservices",
+	"properties": {
+		"annotations": [],
+		"type": "AzureSqlDatabase",
+		"typeProperties": {
+			"server": "azurebatch17.database.windows.net",
+			"database": "azurebatch17-dev",
+			"encrypt": "mandatory",
+			"trustServerCertificate": false,
+			"authenticationType": "SQL",
+			"userName": "nikhil27oct",
+			"encryptedCredential": "ew0KICAiVmVyc2lvbiI6ICIyMDE3LTExLTMwIiwNCiAgIlByb3RlY3Rpb25Nb2RlIjogIktleSIsDQogICJTZWNyZXRDb250ZW50VHlwZSI6ICJQbGFpbnRleHQiLA0KICAiQ3JlZGVudGlhbElkIjogIkRBVEFGQUNUT1JZQDMxQUIwQjVDLURDRkUtNDYzMC05RjNFLTIxRTM2NUI5MTQ3QV9kNjkzZmIxMS04MmU0LTQ1ZmQtYjgxYy05ZTExY2U0NDA0MTUiDQp9"
+		}
+	}
+}
